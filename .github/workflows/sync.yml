@@ -50,6 +50,23 @@ jobs:
           git -C mesa.git fetch --prune "$FALLBACK" '+refs/heads/*:refs/heads/*'
           echo "source=fallback" >> "$GITHUB_OUTPUT"
 
+      - name: Drop malformed tags
+        # 66 CVS-era annotated tags (e.g. R300_DRIVER_0, mesa_3_1) have a
+        # tagger line with no space before the date, or no date at all.
+        # Git tolerates them, but GitHub fsck-checks pushes and rejects the
+        # whole push. No commit or tree is affected, only these tag objects.
+        run: |
+          git -C mesa.git for-each-ref refs/tags --format='%(objecttype) %(objectname) %(refname)' |
+          while read -r type oid ref; do
+            [ "$type" = tag ] || continue
+            tagger=$(git -C mesa.git cat-file tag "$oid" | sed -n '/^tagger /p;/^$/q')
+            [ -n "$tagger" ] || continue
+            if ! printf '%s\n' "$tagger" | grep -Eq '> [0-9]+ [-+][0-9]{4}$'; then
+              echo "Skipping ${ref#refs/tags/}"
+              git -C mesa.git update-ref -d "$ref"
+            fi
+          done
+
       - name: Push to mirror
         env:
           DEPLOY_KEY: ${{ secrets.MESA_MIRROR_DEPLOY_KEY }}
