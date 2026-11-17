@@ -31,4 +31,4 @@ The push uses an SSH deploy key:
 
 This repo's built-in `GITHUB_TOKEN` can't push to another repo, and a token also isn't allowed to push Mesa's `.github/workflows/` files, so a deploy key is needed. To rotate it, generate a new key pair, replace both halves, and delete the old deploy key.
 
-This repo is private on purpose: GitHub disables scheduled workflows in a public repo after 60 days without commits, and nothing commits here.
+GitHub disables scheduled workflows in public repos after 60 days without commits, and nothing commits here. The workflow's last step re-enables itself through the API on every run, which resets that timer.

@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: write # keep-alive step below
 
 concurrency:
   group: mesa-mirror-sync
@@ -91,3 +92,12 @@ jobs:
             refspecs+=('+refs/tags/*:refs/tags/*')
           fi
           git -C mesa.git push --prune "git@github.com:${MIRROR}.git" "${refspecs[@]}"
+
+      - name: Keep the schedule alive
+        # GitHub disables scheduled workflows in public repos after 60 days
+        # without commits, and nothing commits here. Re-enabling the workflow
+        # through the API resets that timer.
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/sync.yml/enable"
