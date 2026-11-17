@@ -54,9 +54,19 @@ jobs:
         env:
           DEPLOY_KEY: ${{ secrets.MIRROR_DEPLOY_KEY }}
         run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::Repository secret MIRROR_DEPLOY_KEY is missing or empty (Settings > Secrets and variables > Actions > Repository secrets)"
+            exit 1
+          fi
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/mirror_key
+          # Strip CRs in case the key was pasted with Windows line endings.
+          printf '%s\n' "$DEPLOY_KEY" | tr -d '\r' > ~/.ssh/mirror_key
           chmod 600 ~/.ssh/mirror_key
+          if ! ssh-keygen -y -f ~/.ssh/mirror_key > /dev/null; then
+            echo "::error::MIRROR_DEPLOY_KEY is not a valid private key. Paste the whole private key file, including the BEGIN/END lines (not the .pub file)."
+            exit 1
+          fi
+          echo "Using deploy key: $(ssh-keygen -l -f ~/.ssh/mirror_key)"
           gh api meta --jq '.ssh_keys[] | "github.com " + .' > ~/.ssh/known_hosts
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/mirror_key -o IdentitiesOnly=yes"
 
