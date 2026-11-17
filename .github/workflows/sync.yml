@@ -2,7 +2,7 @@ name: Sync Mesa mirror
 
 on:
   schedule:
-    - cron: '17 6 * * *'
+    - cron: '17 4 * * *' # quietest hour for merges to Mesa main (UTC)
   workflow_dispatch:
 
 permissions:

@@ -15,7 +15,7 @@ git submodule update --init --recursive --depth 1
 
 ## How the sync works
 
-[`.github/workflows/sync.yml`](.github/workflows/sync.yml) runs daily at 06:17 UTC. Start it by hand from the Actions tab (`workflow_dispatch`) when you need a newer commit before then, for example right after godot-nir-static bumps its Mesa pin:
+[`.github/workflows/sync.yml`](.github/workflows/sync.yml) runs daily at 04:17 UTC, the hour with the fewest merges to Mesa's `main`. Start it by hand from the Actions tab (`workflow_dispatch`) when you need a newer commit before then, for example right after godot-nir-static bumps its Mesa pin:
 
 1. Seeds the existing history from this repo, so only new objects come from upstream.
 2. Fetches branches and tags from freedesktop, trying up to 5 times. If freedesktop can't be reached, it syncs branches from Chromium's mirror (`chromium.googlesource.com/external/gitlab.freedesktop.org/mesa/mesa`) and leaves tags as they are.
