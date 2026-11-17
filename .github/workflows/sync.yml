@@ -52,10 +52,10 @@ jobs:
 
       - name: Push to mirror
         env:
-          DEPLOY_KEY: ${{ secrets.MIRROR_DEPLOY_KEY }}
+          DEPLOY_KEY: ${{ secrets.MESA_MIRROR_DEPLOY_KEY }}
         run: |
           if [ -z "$DEPLOY_KEY" ]; then
-            echo "::error::Repository secret MIRROR_DEPLOY_KEY is missing or empty (Settings > Secrets and variables > Actions > Repository secrets)"
+            echo "::error::Repository secret MESA_MIRROR_DEPLOY_KEY is missing or empty (Settings > Secrets and variables > Actions > Repository secrets)"
             exit 1
           fi
           install -m 700 -d ~/.ssh
@@ -63,7 +63,7 @@ jobs:
           printf '%s\n' "$DEPLOY_KEY" | tr -d '\r' > ~/.ssh/mirror_key
           chmod 600 ~/.ssh/mirror_key
           if ! ssh-keygen -y -f ~/.ssh/mirror_key > /dev/null; then
-            echo "::error::MIRROR_DEPLOY_KEY is not a valid private key. Paste the whole private key file, including the BEGIN/END lines (not the .pub file)."
+            echo "::error::MESA_MIRROR_DEPLOY_KEY is not a valid private key. Paste the whole private key file, including the BEGIN/END lines (not the .pub file)."
             exit 1
           fi
           echo "Using deploy key: $(ssh-keygen -l -f ~/.ssh/mirror_key)"

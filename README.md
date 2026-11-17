@@ -19,5 +19,5 @@ git submodule update --init --recursive --depth 1
 
 1. Seeds the existing history from this repo, so only new objects come from upstream.
 2. Fetches branches and tags from freedesktop, trying up to 5 times. If freedesktop can't be reached, it syncs branches from Chromium's mirror (`chromium.googlesource.com/external/gitlab.freedesktop.org/mesa/mesa`) and leaves tags as they are.
-3. Pushes with `--prune` over SSH using the `MIRROR_DEPLOY_KEY` secret, whose public half is a write-enabled deploy key. A deploy key is needed because Mesa contains `.github/workflows/` files, and the built-in `GITHUB_TOKEN` isn't allowed to push those.
+3. Pushes with `--prune` over SSH using the `MESA_MIRROR_DEPLOY_KEY` secret, whose public half is a write-enabled deploy key. A deploy key is needed because Mesa contains `.github/workflows/` files, and the built-in `GITHUB_TOKEN` isn't allowed to push those.
 4. Disables any workflow other than the sync (for example Mesa's own `macos.yml`) and cancels any runs those workflows started.
