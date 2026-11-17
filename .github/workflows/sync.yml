@@ -1,0 +1,80 @@
+name: Sync Mesa mirror
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # to disable Mesa's own workflows and cancel their runs
+
+concurrency:
+  group: mesa-mirror-sync
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: https://gitlab.freedesktop.org/mesa/mesa.git
+  FALLBACK: https://chromium.googlesource.com/external/gitlab.freedesktop.org/mesa/mesa
+  SYNC_WORKFLOW: .github/workflows/sync.yml
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Seed objects from this mirror
+        run: |
+          git init -q --bare mesa.git
+          git -C mesa.git config gc.auto 0
+          # Pull existing history from GitHub (fast, in-network) so the
+          # upstream fetch below only transfers what is new.
+          git -C mesa.git fetch -q --no-tags "https://github.com/${GH_REPO}.git" \
+            '+refs/heads/*:refs/seed/heads/*' || echo "::notice::No seed available"
+
+      - name: Fetch from upstream
+        id: fetch
+        run: |
+          for i in 1 2 3 4 5; do
+            if git -C mesa.git fetch --prune "$UPSTREAM" \
+                 '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*'; then
+              echo "source=upstream" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "freedesktop fetch attempt $i failed"
+            sleep $((i * 30))
+          done
+          echo "::warning::freedesktop unreachable; syncing branches from the Chromium mirror (no tags)"
+          git -C mesa.git fetch --prune "$FALLBACK" '+refs/heads/*:refs/heads/*'
+          echo "source=fallback" >> "$GITHUB_OUTPUT"
+
+      - name: Push to mirror
+        env:
+          DEPLOY_KEY: ${{ secrets.MIRROR_DEPLOY_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/mirror_key
+          chmod 600 ~/.ssh/mirror_key
+          gh api meta --jq '.ssh_keys[] | "github.com " + .' > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/mirror_key -o IdentitiesOnly=yes"
+
+          refspecs=('+refs/heads/*:refs/heads/*' '^refs/heads/mirror-sync')
+          # Only mirror tags when we actually have the upstream tag list;
+          # otherwise --prune would delete every tag.
+          if [ "${{ steps.fetch.outputs.source }}" = upstream ]; then
+            refspecs+=('+refs/tags/*:refs/tags/*')
+          fi
+          git -C mesa.git push --prune "git@github.com:${GH_REPO}.git" "${refspecs[@]}"
+
+      - name: Keep Mesa's own workflows disabled
+        if: always()
+        run: |
+          gh workflow list --all --json id,path,state \
+            --jq ".[] | select(.path != \"$SYNC_WORKFLOW\" and .state == \"active\") | .id" |
+            xargs -r -n1 gh workflow disable
+          for status in queued in_progress waiting pending requested; do
+            gh api "repos/$GH_REPO/actions/runs?status=$status&per_page=100" \
+              --jq ".workflow_runs[] | select(.path != \"$SYNC_WORKFLOW\") | .id"
+          done | xargs -r -n1 gh run cancel || true
