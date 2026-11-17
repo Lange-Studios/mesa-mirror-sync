@@ -108,5 +108,5 @@ jobs:
               gh api "repos/$GH_REPO/actions/runs?status=$status&per_page=100" \
                 --jq ".workflow_runs[] | select(.path != \"$SYNC_WORKFLOW\") | .id"
             done | sort -u | xargs -r -n1 gh run cancel || true
-            [ "$pass" -lt 5 ] && sleep 30
+            if [ "$pass" -lt 5 ]; then sleep 30; fi
           done
